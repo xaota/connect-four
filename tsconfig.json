@@ -1,0 +1,8 @@
+{
+  "compilerOptions": {
+		"lib": ["ES2020", "DOM"],
+		"allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "jsx": "react"
+	}
+}
