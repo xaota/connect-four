@@ -47,23 +47,38 @@ export const Enter: FC<{onCreateClient: (client: Client) => void}> = (props) => 
 	);
 }
 
-async function createClient(url, roomId, name){
+async function createClient(url: string, roomId: string, name: string){
 	const client = new Client(url);
-	await client.waitForInit();
-	if (!roomId) {
-		const gameSource = (await import("tsc:../controllers/game.ts")).default;
-		console.log("gameSource", [gameSource]);
-		roomId = await client.createRoom({
-			modules: {
-				"game": {
-					type: "js",
-					source: gameSource,
-					evaluate: true,
-					hooks: ["send"]
-				}
-			}
-		});
+	try {
+		await client.waitForInit();
+		if (!roomId) {
+			const gameSource = (await import("tsc:../controllers/game.ts")).default;
+			console.log("gameSource", [gameSource]);
+			const [newRoomId, hash] = await client.createRoom({
+				modules: {
+					"game": {
+						type: "js",
+						source: gameSource,
+						evaluate: true,
+						hooks: ["send", "getHistory"]
+					},
+					"data:config": {
+						type: "json",
+						source: JSON.stringify({
+							name: "CHAT",
+						})
+					}
+				},
+				config: {creator: name}
+			});
+			console.log("Room created", newRoomId, hash);
+			roomId = newRoomId;
+		}
+		await client.joinRoom(roomId, null,{name});
+		return client;
+	} catch (error) {
+		client.close("can not join room");
+		throw error;
 	}
-	await client.joinRoom(roomId, {name});
-	return client;
+
 }

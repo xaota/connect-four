@@ -7,17 +7,22 @@ export const Room: FC<{client: Client}> = ({client}) => {
 		event.preventDefault();
 		const input = event.currentTarget.elements.namedItem("msg") as HTMLInputElement;
 		void client.methods.send(input.value);
+		input.value = "";
 	}, [client]);
 
-	const [messageLines, setMessageLines] = useState<{from, message}[]>([]);
+	const [history, setHistory] = useState<{name, message}[]>([]);
 
 	useEffect(() => {
-		function messageHandler(from, message){
-			console.log("GOT MESSAGE", from, message);
-			setMessageLines(old => ([...old, {from, message}]));
+		function messageHandler(name, msg){
+			setHistory(old => ([...old, {name: name, message: msg}]));
 		}
+
+		client.methods.getHistory().then(setHistory as any)
+
 		client.messages.on("message", messageHandler);
-		return () => client.messages.off("message", messageHandler);
+		return () => {
+			client.messages.off("message", messageHandler);
+		}
 	}, [client])
 
 
@@ -28,9 +33,9 @@ export const Room: FC<{client: Client}> = ({client}) => {
 				<input name="msg" type="text" placeholder="message..." />
 				<input type="submit" value="SEND"/>
 				<br/>
-				{messageLines.map(line => (
-					<div>
-						<strong>{line.from}: </strong>
+				{history.map((line, index) => (
+					<div key={index}>
+						<strong>{line.name}: </strong>
 						<span>{line.message}</span>
 					</div>
 				))}

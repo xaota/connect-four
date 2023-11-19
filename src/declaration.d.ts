@@ -56,3 +56,12 @@ declare module "varhub:room" {
 declare module "inner:timer" {
 	export const syncTime: () => number
 }
+
+declare module "varhub:config" {
+	const r: any;
+	export default r;
+}
+declare module "data:*" {
+	const r: any;
+	export default r;
+}

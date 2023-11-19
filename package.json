@@ -1,6 +1,6 @@
 {
   "name": "connect-four",
-  "version": "0.0.1",
+  "version": "0.0.2",
   "description": "",
   "license": "MIT",
   "author": "dpohvar@gmail.com",
@@ -17,7 +17,7 @@
     "controllers": "^0.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "varhub-ws-client": "git+https://github.com/flinbein/varhub-ws-client.git#1.0.1"
+    "varhub-ws-client": "git+https://github.com/flinbein/varhub-ws-client.git#1.0.7"
   },
   "devDependencies": {
     "@babel/core": "^7.23.3",
