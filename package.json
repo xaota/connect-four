@@ -1,11 +1,11 @@
 {
   "name": "connect-four",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "",
   "license": "MIT",
   "author": "dpohvar@gmail.com",
   "scripts": {
-    "build": "parcel build src/index.html --public-url .",
+    "build": "parcel build src/index.html --log-level error --no-cache --public-url .",
     "dev": "parcel src/index.html --no-cache --public-url /",
     "start": "npm run build && npm run dev",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -17,18 +17,22 @@
     "controllers": "^0.0.2",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
-    "varhub-ws-client": "git+https://github.com/flinbein/varhub-ws-client.git#1.0.7"
+    "varhub-ws-client": "git+https://github.com/flinbein/varhub-ws-client.git#1.0.9"
   },
   "devDependencies": {
     "@babel/core": "^7.23.3",
     "@parcel/optimizer-blob-url": "^2.10.3",
     "@parcel/optimizer-data-url": "^2.10.3",
     "@parcel/packager-ts": "^2.10.3",
+    "@parcel/resolver-glob": "^2.10.3",
     "@parcel/transformer-inline": "^2.10.3",
     "@parcel/transformer-inline-string": "^2.10.3",
     "@parcel/transformer-typescript-tsc": "^2.10.3",
+    "@parcel/transformer-typescript-types": "^2.10.3",
     "@types/react": "^18.2.37",
+    "@types/typescript": "^2.0.0",
     "parcel": "^2.10.3",
-    "process": "^0.11.10"
+    "process": "^0.11.10",
+    "typescript": "^5.2.2"
   }
 }

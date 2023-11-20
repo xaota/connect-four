@@ -1,6 +1,6 @@
-import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler } from "react";
+import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect } from "react";
 import Client from "varhub-ws-client";
-
+type ModuleHooks = Extract<Parameters<Client["createRoom"]>[0]["modules"]["string"], {type: "js"}>["hooks"]
 export const Enter: FC<{onCreateClient: (client: Client) => void}> = (props) => {
 
 	const [action, setAction] = useState("create");
@@ -10,6 +10,24 @@ export const Enter: FC<{onCreateClient: (client: Client) => void}> = (props) => 
 		setAction(event.target.value ? "join" : "create");
 	}, []);
 
+	const enterRoom = useCallback(async (url, room, name) => {
+		try {
+			setLoading(true);
+			const client = await createClient(url, room, name);
+			window.history.replaceState({url, room: client.getRoomId(), name}, "");
+			props.onCreateClient(client);
+		} finally {
+			setLoading(false);
+		}
+	}, []);
+
+	useEffect(() => {
+		const state = window.history.state;
+		if (state?.url && state?.room && state?.name) {
+			void enterRoom(state.url, state.room, state.name)
+		}
+	})
+
 	const onSubmit = useCallback<FormEventHandler<HTMLFormElement>>((event) => {
 		event.preventDefault();
 		const inputs = event.currentTarget.elements;
@@ -17,22 +35,14 @@ export const Enter: FC<{onCreateClient: (client: Client) => void}> = (props) => 
 		const room = (inputs.namedItem("room") as HTMLInputElement).value;
 		const name = (inputs.namedItem("name") as HTMLInputElement).value;
 		console.log({url, room, name});
-		(async () => {
-			try {
-				setLoading(true);
-				const client = await createClient(url, room, name);
-				props.onCreateClient(client);
-			} finally {
-				setLoading(false);
-			}
-		})()
-
+		void enterRoom(url, room, name);
 	}, []);
+
 
 	return (
 		<form onSubmit={onSubmit}>
 			<div>
-				<input disabled={loading} name="url" type="text" placeholder="url" required/>
+				<input disabled={loading} name="url" type="text" placeholder="wss://server-address" required/>
 			</div>
 			<div>
 				<input disabled={loading} name="room" type="text" placeholder="room (create new if empty)" onChange={onChangeRoomId}/>
@@ -52,33 +62,75 @@ async function createClient(url: string, roomId: string, name: string){
 	try {
 		await client.waitForInit();
 		if (!roomId) {
-			const gameSource = (await import("tsc:../controllers/game.ts")).default;
-			console.log("gameSource", [gameSource]);
-			const [newRoomId, hash] = await client.createRoom({
-				modules: {
-					"game": {
-						type: "js",
-						source: gameSource,
+			const roomModules = await createRoomModules(
+				import("varhub-source-ts:../controllers/**/*.ts"),
+				import("varhub-source-json:../controllers/**/*.json"),
+				{"/game": {
 						evaluate: true,
-						hooks: ["send", "getHistory"]
-					},
-					"data:config": {
-						type: "json",
-						source: JSON.stringify({
-							name: "CHAT",
-						})
-					}
-				},
+						hooks: "*"
+					}}
+			)
+			console.log("roomModules", roomModules);
+			const [newRoomId, hash] = await client.createRoom({
+				modules: roomModules,
 				config: {creator: name}
 			});
 			console.log("Room created", newRoomId, hash);
 			roomId = newRoomId;
 		}
-		await client.joinRoom(roomId, null,{name});
+		await client.joinRoom(roomId, "76e742aa1f456d104571b5fa1fcf782ea9e4cdfd28a7af0457d6f921d02ebdc3",{name});
 		return client;
 	} catch (error) {
 		client.close("can not join room");
 		throw error;
 	}
 
+}
+
+async function createRoomModules(
+	jsModules: any,
+	jsonModules: any,
+	options?: Record<string, {evaluate?: boolean, hooks?: ModuleHooks}>
+){
+	const result = {};
+	const tasks: Promise<any>[] = []
+	createJsModule(jsModules, "/");
+	createJsonModule(jsonModules, "/");
+	function createJsModule(modulesMap, path: string){
+		for (const key of Object.keys(modulesMap)) {
+			const module = modulesMap[key];
+			const modulePath = path+key;
+			if (typeof module === "object") {
+				return createJsModule(module, modulePath + "/");
+			}
+			tasks.push((async () => {
+				const source = (await module()).default;
+				const moduleConfig = options?.[modulePath];
+				const desc: any = {
+					type: "js",
+					source
+				}
+				if (moduleConfig?.evaluate) desc.evaluate = true;
+				if (moduleConfig?.hooks) desc.hooks = moduleConfig.hooks;
+				result[modulePath+".js"] = desc
+			})());
+		}
+	}
+	function createJsonModule(modulesMap, path: string){
+		for (const key of Object.keys(modulesMap)) {
+			const modulePath = path+key;
+			const module = modulesMap[key];
+			if (typeof module === "object") {
+				return createJsonModule(module, modulePath + "/");
+			}
+			tasks.push((async () => {
+				result[modulePath+".json"] = {
+					type: "json",
+					source: JSON.stringify(await module())
+				}
+			})());
+		}
+	}
+	await Promise.all(tasks);
+	return result;
 }

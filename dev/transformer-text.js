@@ -1,8 +1,9 @@
-//import {Optimizer} from '@parcel/plugin';
 const {Transformer} = require("@parcel/plugin");
+
 module.exports = new Transformer({
 	async transform({asset}) {
-		asset.setCode(`export /*hi!*/ default ${JSON.stringify(await asset.getCode())}`);
+		const source = await asset.getCode();
+		asset.setCode(`export default ${JSON.stringify(source)}`);
 		return [asset];
 	}
 });
