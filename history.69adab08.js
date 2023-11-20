@@ -1,0 +1,3 @@
+(0,globalThis.parcelRequire1811.register)("9c9TL",function(e,n){Object.defineProperty(e.exports,"__esModule",{value:!0,configurable:!0}),Object.defineProperty(e.exports,"default",{get:()=>r,set:void 0,enumerable:!0,configurable:!0});var r='import config from "varhub:config";\nimport data from "./bunde/bundle";\nvar history = [{ name: config.creator, message: data.greetMessage }];\nexport function addToHistory(name, message) {\n    history.push({ name: name, message: message });\n}\nexport function clearHistory(name) {\n    history.length = 0;\n    history.push({ name: name, message: data.clearMessage });\n}\nexport function getHistory() {\n    return history;\n}\n'});//# sourceMappingURL=history.69adab08.js.map
+
+//# sourceMappingURL=history.69adab08.js.map
