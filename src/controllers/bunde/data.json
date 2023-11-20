@@ -1,3 +1,4 @@
 {
-	"greetMessage": "room created"
+	"greetMessage": "*room created*",
+	"clearMessage": "*history cleared*"
 }

@@ -1,0 +1,19 @@
+* {
+	box-sizing: border-box;
+}
+html {
+	font-size: 20px;
+}
+body {
+	max-width: 600px;
+	width: auto;
+	margin: auto;
+}
+input {
+	font-size: 20px;
+	width: calc(100% - 30px);
+	font-family: monospace;
+	margin: 3px 10px;
+	padding: 5px;
+	border-radius: 5px;
+}
