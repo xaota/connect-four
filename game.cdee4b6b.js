@@ -1,3 +1,0 @@
-(0,globalThis.parcelRequire1811.register)("a6Mfq",function(e,n){Object.defineProperty(e.exports,"__esModule",{value:!0,configurable:!0}),Object.defineProperty(e.exports,"default",{get:()=>r,set:void 0,enumerable:!0,configurable:!0});var r='import room from "varhub:room";\nimport config from "varhub:config";\nvar history = [{\n  name: config.creator,\n  message: "*room created*"\n}];\nroom.addEventListener("join", function (a) {\n  a.client.name = a.message.name;\n});\nexport function getHistory() {\n  return history;\n}\nexport function send(a) {\n  return history.push({\n    name: this.client.name,\n    message: a\n  }), room.broadcast("message", this.client.name, a), !0;\n}'});//# sourceMappingURL=game.cdee4b6b.js.map
-
-//# sourceMappingURL=game.cdee4b6b.js.map
