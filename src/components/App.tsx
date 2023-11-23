@@ -1,28 +1,51 @@
-import React, { FC, useEffect, useState } from "react";
+import React, { FC, useEffect, useMemo, useState } from "react";
 import { Enter } from "./Enter";
 import Client from "varhub-ws-client";
 import { Room } from "./Room";
+import { QrCodeCanvas } from "./QrCodeCanvas";
 
 export const App: FC = () => {
 
-	const [client, setClient] = useState<Client|null>(null);
+	const [connectedData, setConnectedData] = useState<{client: Client, team: "x"|"o"|"s", url: string, room: string}|null>(null);
 
 	useEffect(() => {
-		if (!client) return;
+		if (!connectedData) return;
 		function onClose(){
-			setClient(null);
+			setConnectedData(null);
 		}
-		client.events.on("close", onClose);
-		return () => client.events.off("close", onClose);
-	}, [client]);
+		connectedData.client.events.on("close", onClose);
+		return () => connectedData.client.events.off("close", onClose);
+	}, [connectedData]);
 
-	if (!client) return (
+	const inviteUrl = useMemo<string|null>(() => {
+		if (!connectedData) return null;
+		console.log("BUILD-URL", connectedData);
+		const resultUrl = new URL(location.href);
+		resultUrl.searchParams.set("url", connectedData.url);
+		resultUrl.searchParams.set("room", connectedData.room);
+		return resultUrl.href;
+	}, [connectedData])
+
+
+	if (!connectedData) return (
 		<div>
-			<Enter onCreateClient={setClient}/>
+			<Enter onCreateClient={setConnectedData}/>
 		</div>
 	);
 
+
 	return (
-		<Room client={client}></Room>
+		<>
+		<Room client={connectedData.client} team={connectedData.team} />
+		{inviteUrl !== null && (
+			<div className="invite-info">
+
+				<QrCodeCanvas data={inviteUrl} width="2000" height="2000" className="invite-image" />
+				<div className="invite-room">{connectedData.room}</div>
+			</div>
+			)}
+		</>
+
+
 	)
 }

@@ -1,31 +1,50 @@
 import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect } from "react";
 import Client from "varhub-ws-client";
 type ModuleHooks = Extract<Parameters<Client["createRoom"]>[0]["modules"]["string"], {type: "js"}>["hooks"]
-export const Enter: FC<{onCreateClient: (client: Client) => void}> = (props) => {
+export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s", url: string, room: string}) => void}> = (props) => {
 
-	const [action, setAction] = useState(() => history?.state?.room ? "join" : "create");
+
 	const [loading, setLoading] = useState(false);
+
+	const [initValues] = useState(() => {
+		const searchParams = new URLSearchParams(location.search);
+
+		const url = searchParams.get("url") ?? history?.state?.url ?? "";
+		const room = searchParams.get("room") ?? history?.state?.room ?? "";
+		const name = history?.state?.name ?? "";
+		const team = history?.state?.team ?? "";
+
+		if (searchParams.has("url") || searchParams.has("room")) {
+			const currentUrl = new URL(location.href);
+			currentUrl.search = "";
+			history.replaceState({ url, room, name, team }, "", currentUrl);
+		}
+		return { url, room, name, team };
+	});
+
+	const [action, setAction] = useState(() => initValues.room ? "join" : "create");
 
 	const onChangeRoomId = useCallback<ChangeEventHandler<HTMLInputElement>>((event) => {
 		setAction(event.target.value ? "join" : "create");
 	}, []);
 
-	const enterRoom = useCallback(async (url, room, name) => {
-		console.log("ENTER ROOM", {url, room, name})
+	const enterRoom = useCallback(async (url: string, room:string, name:string, team:"x"|"o"|"s") => {
+		if (!team) return;
+		console.log("ENTER ROOM", {url, room, name, team})
 		try {
 			setLoading(true);
-			const client = await createClient(url, room, name);
-			window.history.replaceState({url, room: client.getRoomId(), name, join: true}, "");
-			props.onCreateClient(client);
+			const client = await createClient(url, room, {name,team});
+			window.history.replaceState({url, room: client.getRoomId(), name, team}, "");
+			props.onCreateClient({client, team, url, room});
 		} finally {
 			setLoading(false);
 		}
 	}, []);
 
 	useEffect(() => {
-		const state = window.history.state;
-		if (state?.url && state?.room && state?.name && state?.join) {
-			void enterRoom(state.url, state.room, state.name)
+		console.log("INIT-VALUES", initValues);
+		if (initValues.url && initValues.room && initValues.name && initValues.team) {
+			void enterRoom(initValues.url, initValues.room, initValues.name, initValues.team as any);
 		}
 	}, []);
 
@@ -35,30 +54,33 @@ export const Enter: FC<{onCreateClient: (client: Client) => void}> = (props) => 
 		const url = (inputs.namedItem("url") as HTMLInputElement).value;
 		const room = (inputs.namedItem("room") as HTMLInputElement).value;
 		const name = (inputs.namedItem("name") as HTMLInputElement).value;
-		console.log({url, room, name});
-		void enterRoom(url, room, name);
+		const team = event.nativeEvent?.["submitter"]?.name as string;
+		console.log("FORM", {url, room, name, team});
+		void enterRoom(url, room, name, team as any);
 	}, []);
 
 
 	return (
 		<form onSubmit={onSubmit}>
 			<div>
-				<input disabled={loading} name="url" type="text" placeholder="wss://server-address" defaultValue={window.history?.state?.url} required/>
+				<input disabled={loading} name="url" type="text" placeholder="wss://server-address" defaultValue={initValues.url} required/>
 			</div>
 			<div>
-				<input disabled={loading} name="room" type="text" placeholder="room (create new if empty)" defaultValue={window.history?.state?.room} onChange={onChangeRoomId}/>
+				<input disabled={loading} name="room" type="text" placeholder="room (create new if empty)" defaultValue={initValues.room} onChange={onChangeRoomId}/>
 			</div>
 			<div>
-				<input disabled={loading} name="name" type="text" placeholder="name" defaultValue={window.history?.state?.name} required/>
+				<input disabled={loading} name="name" type="text" placeholder="name" defaultValue={initValues.name} required/>
 			</div>
-			<div>
-				<input disabled={loading} type="submit" value={action}/>
+			<div className="form-line">
+				<input name="x" disabled={loading} type="submit" value={action + " X"}/>
+				<input name="o" disabled={loading} type="submit" value={action + " O"}/>
+				<input name="s" disabled={loading} type="submit" value={action + " spectate"}/>
 			</div>
 		</form>
 	);
 }
 
-async function createClient(url: string, roomId: string, name: string){
+async function createClient(url: string, roomId: string, params: any){
 	const client = new Client(url);
 	try {
 		await client.waitForInit();
@@ -66,20 +88,22 @@ async function createClient(url: string, roomId: string, name: string){
 			const roomModules = await createRoomModules(
 				import("varhub-source-ts:../controllers/**/*.ts"),
 				import("varhub-source-json:../controllers/**/*.json"),
-				{"/game": {
+				{
+					"/game": {
 						evaluate: true,
 						hooks: "*"
-					}}
+					}
+				}
 			)
 			console.log("roomModules", roomModules);
 			const [newRoomId, hash] = await client.createRoom({
 				modules: roomModules,
-				config: {creator: name}
+				config: {creator: name},
 			});
 			console.log("Room created", newRoomId, hash);
 			roomId = newRoomId;
 		}
-		await client.joinRoom(roomId, "d983f6d1eb53aa29699a6883bde7ef4b62b8145770c361193466e3617c631c18",{name});
+		await client.joinRoom(roomId, null, params);
 		return client;
 	} catch (error) {
 		client.close("can not join room");
