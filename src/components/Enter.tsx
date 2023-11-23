@@ -13,13 +13,16 @@ export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s
 		const room = searchParams.get("room") ?? history?.state?.room ?? "";
 		const name = history?.state?.name ?? "";
 		const team = history?.state?.team ?? "";
+		let autofocusField = "url";
+		if (url) autofocusField = "room";
+		if (url && room) autofocusField = "name";
 
 		if (searchParams.has("url") || searchParams.has("room")) {
 			const currentUrl = new URL(location.href);
 			currentUrl.search = "";
 			history.replaceState({ url, room, name, team }, "", currentUrl);
 		}
-		return { url, room, name, team };
+		return { url, room, name, team, autofocusField };
 	});
 
 	const [action, setAction] = useState(() => initValues.room ? "join" : "create");
@@ -66,13 +69,13 @@ export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s
 	return (
 		<form onSubmit={onSubmit}>
 			<div>
-				<input disabled={loading} name="url" type="text" placeholder="wss://server-address" defaultValue={initValues.url} required/>
+				<input autoFocus={initValues.autofocusField==="url"} disabled={loading} name="url" type="text" placeholder="wss://server-address" defaultValue={initValues.url} required/>
 			</div>
 			<div>
-				<input disabled={loading} name="room" type="text" placeholder="room (create new if empty)" defaultValue={initValues.room} onChange={onChangeRoomId}/>
+				<input autoFocus={initValues.autofocusField==="room"} disabled={loading} name="room" type="text" placeholder="room (create new if empty)" defaultValue={initValues.room} onChange={onChangeRoomId}/>
 			</div>
 			<div>
-				<input disabled={loading} name="name" type="text" placeholder="name" defaultValue={initValues.name} required/>
+				<input autoFocus={initValues.autofocusField==="name"} disabled={loading} name="name" type="text" placeholder="name" defaultValue={initValues.name} required/>
 			</div>
 			<div className="form-line">
 				<input name="x" disabled={loading} type="submit" value={action + " X"}/>
