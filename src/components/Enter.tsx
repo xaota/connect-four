@@ -36,6 +36,9 @@ export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s
 			const client = await createClient(url, room, {name,team});
 			window.history.replaceState({url, room: client.getRoomId(), name, team}, "");
 			props.onCreateClient({client, team, url});
+		} catch (e) {
+			console.error(e);
+			alert(e.message);
 		} finally {
 			setLoading(false);
 		}
@@ -103,7 +106,8 @@ async function createClient(url: string, roomId: string, params: any){
 			console.log("Room created", newRoomId, hash);
 			roomId = newRoomId;
 		}
-		await client.joinRoom(roomId, null, params);
+		const joinSuccess = await client.joinRoom(roomId, null, params);
+		if (!joinSuccess) throw new Error("player rejected by room");
 		return client;
 	} catch (error) {
 		client.close("can not join room");
