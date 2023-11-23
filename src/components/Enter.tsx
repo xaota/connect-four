@@ -1,7 +1,7 @@
 import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect } from "react";
 import Client from "varhub-ws-client";
 type ModuleHooks = Extract<Parameters<Client["createRoom"]>[0]["modules"]["string"], {type: "js"}>["hooks"]
-export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s", url: string, room: string}) => void}> = (props) => {
+export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s", url: string}) => void}> = (props) => {
 
 
 	const [loading, setLoading] = useState(false);
@@ -35,7 +35,7 @@ export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s
 			setLoading(true);
 			const client = await createClient(url, room, {name,team});
 			window.history.replaceState({url, room: client.getRoomId(), name, team}, "");
-			props.onCreateClient({client, team, url, room});
+			props.onCreateClient({client, team, url});
 		} finally {
 			setLoading(false);
 		}

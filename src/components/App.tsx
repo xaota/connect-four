@@ -6,7 +6,7 @@ import { QrCodeCanvas } from "./QrCodeCanvas";
 
 export const App: FC = () => {
 
-	const [connectedData, setConnectedData] = useState<{client: Client, team: "x"|"o"|"s", url: string, room: string}|null>(null);
+	const [connectedData, setConnectedData] = useState<{client: Client, team: "x"|"o"|"s", url: string}|null>(null);
 
 	useEffect(() => {
 		if (!connectedData) return;
@@ -22,7 +22,7 @@ export const App: FC = () => {
 		console.log("BUILD-URL", connectedData);
 		const resultUrl = new URL(location.href);
 		resultUrl.searchParams.set("url", connectedData.url);
-		resultUrl.searchParams.set("room", connectedData.room);
+		resultUrl.searchParams.set("room", connectedData.client.getRoomId());
 		return resultUrl.href;
 	}, [connectedData])
 
@@ -41,7 +41,7 @@ export const App: FC = () => {
 			<div className="invite-info">
 
 				<QrCodeCanvas data={inviteUrl} width="2000" height="2000" className="invite-image" />
-				<div className="invite-room">{connectedData.room}</div>
+				<div className="invite-room">{connectedData.client.getRoomId()}</div>
 			</div>
 			)}
 		</>
