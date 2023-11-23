@@ -90,14 +90,12 @@ function checkWin(colNumber: number, rowNumber: number, team: "x"|"o"){
 }
 
 function checkWinPoints(map: ("x"|"o"|"X"|"O")[][], colNumber: number, rowNumber: number, team: "x"|"o", winLength: number): null | [number, number][]{
-	console.log("CHECK-WIN-POINTS");
 	const totalWinPoints: [number, number][] = [];
 	for (const dir of directions) {
 		const winPoints = [];
 		let point = [colNumber, rowNumber];
 		while (true) {
 			const value = map[point[0]]?.[point[1]];
-			console.log("CHECK-POINTS +...", team, value, point);
 			if (value !== team) break;
 			winPoints.push(point);
 			point = [point[0]+dir[0], point[1]+dir[1]]
@@ -105,14 +103,12 @@ function checkWinPoints(map: ("x"|"o"|"X"|"O")[][], colNumber: number, rowNumber
 		point = [colNumber-dir[0], rowNumber-dir[1]];
 		while (true) {
 			const value = map[point[0]]?.[point[1]];
-			console.log("CHECK-POINTS -...", team, value, point);
 			if (value !== team) break;
 			winPoints.push(point);
 			point = [point[0]-dir[0], point[1]-dir[1]]
 		}
 		if (winPoints.length >= winLength) totalWinPoints.push(...winPoints);
 	}
-	console.log("CHECK-WIN-POINTS-DONE", totalWinPoints);
 	if (totalWinPoints.length === 0) return null;
 	return totalWinPoints;
 }
