@@ -1,4 +1,4 @@
-import React, { FC, useEffect, useMemo, useState } from "react";
+import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
 import { Enter } from "./Enter";
 import Client from "varhub-ws-client";
 import { Room } from "./Room";
@@ -24,7 +24,11 @@ export const App: FC = () => {
 		resultUrl.searchParams.set("url", connectedData.url);
 		resultUrl.searchParams.set("room", connectedData.client.getRoomId());
 		return resultUrl.href;
-	}, [connectedData])
+	}, [connectedData]);
+
+	const share = useCallback(() => {
+		void navigator.share({url: inviteUrl, title: "Join game", text: `Room id: ${connectedData.client.getRoomId()}`});
+	}, [inviteUrl, connectedData])
 
 
 	if (!connectedData) return (
@@ -34,6 +38,7 @@ export const App: FC = () => {
 	);
 
 
+
 	return (
 		<>
 		<Room client={connectedData.client} team={connectedData.team} />
@@ -41,7 +46,10 @@ export const App: FC = () => {
 			<div className="invite-info">
 
 				<QrCodeCanvas data={inviteUrl} width="2000" height="2000" className="invite-image" />
-				<div className="invite-room">{connectedData.client.getRoomId()}</div>
+				<div className="invite-room form-line">
+					<a target="_blank" href={inviteUrl}>{connectedData.client.getRoomId()}</a>
+					<input type="button" onClick={share} value="share" />
+				</div>
 			</div>
 			)}
 		</>
