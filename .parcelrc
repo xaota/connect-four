@@ -1,16 +1,1 @@
-{
-  "extends": "@parcel/config-default",
-	"resolvers": [
-		"@parcel/resolver-glob", "..."
-	],
-  "transformers": {
-		"varhub-source-ts:*": [
-			"@parcel/transformer-typescript-tsc",
-			"./dev/transformer-text",
-			"..."
-		],
-		"varhub-source-json:*": [
-			"..."
-		]
-	}
-}
+{"extends": "@flinbein/parcel-config-varhub"}

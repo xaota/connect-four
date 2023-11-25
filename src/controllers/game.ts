@@ -15,7 +15,6 @@ room.addEventListener("join", event => {
 		state.playerO = String(name);
 		sendUpdateState();
 	}
-	console.log("JOINED", name, team);
 });
 
 const state = {
@@ -79,7 +78,7 @@ export function move(colNumber: number){
 	return true;
 }
 
-const directions: [number, number][] = [[0, 1], [1, 1], [1, 0]]
+const directions: [number, number][] = [[0, 1], [1, 1], [1, 0], [1, -1]]
 function checkWin(colNumber: number, rowNumber: number, team: "x"|"o"){
 	const winPoints = checkWinPoints(state.data, colNumber, rowNumber, team, 4);
 	if (!winPoints) return;

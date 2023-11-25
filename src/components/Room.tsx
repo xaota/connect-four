@@ -14,6 +14,7 @@ interface GameState {
 export const Room: FC<{client: Client, team: "x"|"o"|"s"}> = ({client, team}) => {
 
 	const [gameState, setGameState] = useState<GameState|null>(null);
+	const [logoData, setLogoData] = useState<Uint8Array|null>(null);
 
 	const destroy = useCallback(() => {
 		void client.methods.destroy();
@@ -25,16 +26,12 @@ export const Room: FC<{client: Client, team: "x"|"o"|"s"}> = ({client, team}) =>
 	}, [])
 
 	useEffect(() => {
-		function stateHandler(state: GameState){
-			setGameState(state);
-		}
 
-		client.methods.getState().then((state) => {
-			setGameState(state as any);
-		})
+		client.methods.getState().then(setGameState as any)
+		client.methods.getLogo().then(setLogoData as any)
 
-		client.messages.on("state", stateHandler as any)
-		return () => client.messages.off("state", stateHandler as any);
+		client.messages.on("state", setGameState as any)
+		return () => client.messages.off("state", setGameState as any);
 	}, [client])
 
 
@@ -45,6 +42,7 @@ export const Room: FC<{client: Client, team: "x"|"o"|"s"}> = ({client, team}) =>
 			<div className="form-line">
 				<input type="button" value="DESTROY" onClick={destroy}/>
 				<input type="button" value="LEAVE" onClick={leave}/>
+				{logoData && String(logoData)}
 			</div>
 		</div>
 	)

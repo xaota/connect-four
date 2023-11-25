@@ -22,12 +22,12 @@ export const App: FC = () => {
 		console.log("BUILD-URL", connectedData);
 		const resultUrl = new URL(location.href);
 		resultUrl.searchParams.set("url", connectedData.url);
-		resultUrl.searchParams.set("room", connectedData.client.getRoomId());
+		resultUrl.searchParams.set("room", connectedData.client.roomId);
 		return resultUrl.href;
 	}, [connectedData]);
 
 	const share = useCallback(() => {
-		void navigator.share({url: inviteUrl, title: "Join game", text: `Room id: ${connectedData.client.getRoomId()}`});
+		void navigator.share({url: inviteUrl, title: "Join game", text: `Room id: ${connectedData.client.roomId}`});
 	}, [inviteUrl, connectedData])
 
 
@@ -47,7 +47,7 @@ export const App: FC = () => {
 
 				<QrCodeCanvas data={inviteUrl} width="2000" height="2000" className="invite-image" />
 				<div className="invite-room form-line">
-					<a target="_blank" href={inviteUrl}>{connectedData.client.getRoomId()}</a>
+					<a target="_blank" href={inviteUrl}>{connectedData.client.roomId}</a>
 					<input type="button" onClick={share} value="share" />
 				</div>
 			</div>

@@ -1,6 +1,6 @@
 import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect } from "react";
-import Client from "varhub-ws-client";
-type ModuleHooks = Extract<Parameters<Client["createRoom"]>[0]["modules"]["string"], {type: "js"}>["hooks"]
+import {default as Client, ModuleDescription} from "varhub-ws-client";
+type ModuleHooks = Extract<ModuleDescription, {type: "js"}>["hooks"]
 export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s", url: string}) => void}> = (props) => {
 
 
@@ -33,11 +33,10 @@ export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s
 
 	const enterRoom = useCallback(async (url: string, room:string, name:string, team:"x"|"o"|"s") => {
 		if (!team) return;
-		console.log("ENTER ROOM", {url, room, name, team})
 		try {
 			setLoading(true);
 			const client = await createClient(url, room, {name,team});
-			window.history.replaceState({url, room: client.getRoomId(), name, team}, "");
+			window.history.replaceState({url, room: client.roomId, name, team}, "");
 			props.onCreateClient({client, team, url});
 		} catch (e) {
 			console.error(e);
@@ -91,16 +90,7 @@ async function createClient(url: string, roomId: string, params: any){
 	try {
 		await client.waitForInit();
 		if (!roomId) {
-			const roomModules = await createRoomModules(
-				import("varhub-source-ts:../controllers/**/*.ts"),
-				import("varhub-source-json:../controllers/**/*.json"),
-				{
-					"/game": {
-						evaluate: true,
-						hooks: "*"
-					}
-				}
-			)
+			const roomModules = await import("varhub-modules:../controllers:/game.ts");
 			console.log("roomModules", roomModules);
 			const [newRoomId, hash] = await client.createRoom({
 				modules: roomModules,
@@ -117,52 +107,4 @@ async function createClient(url: string, roomId: string, params: any){
 		throw error;
 	}
 
-}
-
-async function createRoomModules(
-	jsModules: any,
-	jsonModules: any,
-	options?: Record<string, {evaluate?: boolean, hooks?: ModuleHooks}>
-){
-	const result = {};
-	const tasks: Promise<any>[] = []
-	createJsModule(jsModules, "/");
-	createJsonModule(jsonModules, "/");
-	function createJsModule(modulesMap, path: string){
-		for (const key of Object.keys(modulesMap)) {
-			const module = modulesMap[key];
-			const modulePath = path+key;
-			if (typeof module === "object") {
-				return createJsModule(module, modulePath + "/");
-			}
-			tasks.push((async () => {
-				const source = (await module()).default;
-				const moduleConfig = options?.[modulePath];
-				const desc: any = {
-					type: "js",
-					source
-				}
-				if (moduleConfig?.evaluate) desc.evaluate = true;
-				if (moduleConfig?.hooks) desc.hooks = moduleConfig.hooks;
-				result[modulePath+".js"] = desc
-			})());
-		}
-	}
-	function createJsonModule(modulesMap, path: string){
-		for (const key of Object.keys(modulesMap)) {
-			const modulePath = path+key;
-			const module = modulesMap[key];
-			if (typeof module === "object") {
-				return createJsonModule(module, modulePath + "/");
-			}
-			tasks.push((async () => {
-				result[modulePath+".json"] = {
-					type: "json",
-					source: JSON.stringify(await module())
-				}
-			})());
-		}
-	}
-	await Promise.all(tasks);
-	return result;
 }
