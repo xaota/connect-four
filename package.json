@@ -1,11 +1,14 @@
 {
   "name": "@flinbein/connect-four",
-  "version": "1.0.0",
+  "version": "1.0.1",
 	"type": "module",
 	"description": "",
   "license": "MIT",
   "author": "dpohvar@gmail.com",
   "types": "./src/types.d.ts",
+	"targets": {
+		"types": false
+	},
   "scripts": {
     "build": "parcel build src/index.html --log-level error --no-cache --public-url .",
     "dev": "parcel src/index.html --no-cache --public-url /",
