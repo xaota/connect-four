@@ -1,59 +1,28 @@
-import React, { FC, useCallback, useEffect, useMemo, useState } from "react";
-import { Enter } from "./Enter";
-import Client from "varhub-ws-client";
-import { Room } from "./Room";
-import { QrCodeCanvas } from "./QrCodeCanvas";
+import React, { FC, useEffect, useState } from "react";
+import { Enter } from "./Enter.jsx";
+import { Room } from "./Room.jsx";
+import { VarhubGameClient } from "../types";
+
 
 export const App: FC = () => {
-
-	const [connectedData, setConnectedData] = useState<{client: Client, team: "x"|"o"|"s", url: string}|null>(null);
+	const [client, setClient] = useState<VarhubGameClient|null>(null);
 
 	useEffect(() => {
-		if (!connectedData) return;
-		function onClose(){
-			setConnectedData(null);
-		}
-		connectedData.client.events.on("close", onClose);
-		return () => connectedData.client.events.off("close", onClose);
-	}, [connectedData]);
-
-	const inviteUrl = useMemo<string|null>(() => {
-		if (!connectedData) return null;
-		console.log("BUILD-URL", connectedData);
-		const resultUrl = new URL(location.href);
-		resultUrl.searchParams.set("url", connectedData.url);
-		resultUrl.searchParams.set("room", connectedData.client.roomId);
-		return resultUrl.href;
-	}, [connectedData]);
-
-	const share = useCallback(() => {
-		void navigator.share({url: inviteUrl, title: "Join game", text: `Room id: ${connectedData.client.roomId}`});
-	}, [inviteUrl, connectedData])
+		// clear connection on close;
+		if (!client) return;
+		const onClose = () => setClient(null);
+		client.on("close", onClose);
+		return () => void client.off("close", onClose);
+	}, [client]);
 
 
-	if (!connectedData) return (
+	if (!client) return (
 		<div>
-			<Enter onCreateClient={setConnectedData}/>
+			<Enter onCreate={setClient}/>
 		</div>
 	);
 
-
-
 	return (
-		<>
-		<Room client={connectedData.client} team={connectedData.team} />
-		{inviteUrl !== null && (
-			<div className="invite-info">
-
-				<QrCodeCanvas data={inviteUrl} width="2000" height="2000" className="invite-image" />
-				<div className="invite-room form-line">
-					<a target="_blank" href={inviteUrl}>{connectedData.client.roomId}</a>
-					<input type="button" onClick={share} value="share" />
-				</div>
-			</div>
-			)}
-		</>
-
-
+		<Room client={client}  />
 	)
 }

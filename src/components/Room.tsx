@@ -1,67 +1,65 @@
-import React, { FC, useCallback, useState, FormEventHandler, useEffect } from "react";
-import Client from "varhub-ws-client";
+import React, { FC, useCallback, useState, FormEventHandler, useEffect, useMemo } from "react";
+import { VarhubGameClient, GameState } from "../types";
+import { joinTeam } from "../controllers";
 import { QrCodeCanvas } from "./QrCodeCanvas";
 
+interface Props {}
 
-interface GameState {
-	win: "x"|"o"|null,
-	playerX: string|null,
-	playerO: string|null,
-	height: number,
-	data: ("x"|"o"|"X"|"O")[][],
-	turn: "restart"|"x"|"o"|null,
+export interface RoomConnection {
+	client: VarhubGameClient
 }
-export const Room: FC<{client: Client, team: "x"|"o"|"s"}> = ({client, team}) => {
+
+export const Room: FC<RoomConnection> = ({client}) => {
 
 	const [gameState, setGameState] = useState<GameState|null>(null);
-	const [logoData, setLogoData] = useState<Uint8Array|null>(null);
-
-	const destroy = useCallback(() => {
-		void client.methods.destroy();
-	}, [])
 
 	const leave = useCallback(() => {
-		history.replaceState({...history.state, team: ""}, "");
+		history.replaceState({...history.state, join: false}, "");
 		void client.close("leave");
-	}, [])
+	}, []);
 
 	useEffect(() => {
 
 		client.methods.getState().then(setGameState as any)
-		client.methods.getLogo().then(setLogoData as any)
 
 		client.messages.on("state", setGameState as any)
 		return () => client.messages.off("state", setGameState as any);
-	}, [client])
+	}, [client]);
 
+	const inviteUrl = useMemo<string|null>(() => {
+		const resultUrl = new URL(location.href);
+		resultUrl.searchParams.set("url", client.hub.url);
+		resultUrl.searchParams.set("room", client.roomId);
+		return resultUrl.href;
+	}, [client]);
+
+	const share = useCallback(() => {
+		void navigator.share({url: inviteUrl, title: "Join game", text: `Room id: ${client.roomId}`});
+	}, [inviteUrl, client])
 
 	return (
 		<div>
-
-			{gameState && <RoomGame client={client} gameState={gameState} team={team} />}
+			{gameState && <RoomGame client={client} gameState={gameState} />}
 			<div className="form-line">
-				<input type="button" value="DESTROY" onClick={destroy}/>
 				<input type="button" value="LEAVE" onClick={leave}/>
-				{logoData && String(logoData)}
 			</div>
+			<QrCodeCanvas data={inviteUrl} onClick={share} />
 		</div>
 	)
 }
 
-const RoomGame: FC<{client: Client, gameState: GameState, team: "x"|"o"|"s"}> = ({client, gameState, team}) => {
+const RoomGame: FC<{client: VarhubGameClient, gameState: GameState}> = ({client, gameState}) => {
 	const [loading, setLoading] = useState(false);
-	const canTurn = !gameState.turn || gameState.turn === team;
+	const canTurn = !gameState.turn || gameState.turn === client.name;
 
 	const move = useCallback(async (index: number) => {
 		setLoading(true);
 		try {
 			await client.methods.move(index);
 		} finally {
-			setLoading(false)
+			setLoading(false);
 		}
 	}, []);
-
-	const winner = gameState.win === "x" ? gameState.playerX : gameState.win === "o" ? gameState.playerO : null;
 
 	return (
 		<>
@@ -71,8 +69,8 @@ const RoomGame: FC<{client: Client, gameState: GameState, team: "x"|"o"|"s"}> = 
 				<div className={"player-name _o "+(gameState.playerO===null ? "_empty": "")}>{gameState.playerO}</div>
 			</div>
 			<RoomField field={gameState.data} canTurn={!loading && canTurn} height={gameState.height} onMove={move}/>
-			{winner !== null && <div>WINNER: {winner}</div>}
-			{gameState.turn === "restart" && team !== "s" && gameState.playerX !== null && gameState.playerO !== null && <RoomGameRestart client={client}/>}
+			{gameState.win !== null && <div>WINNER: {gameState.win}</div>}
+			<RoomGameControl gameState={gameState} client={client} />
 		</>
 	);
 }
@@ -123,8 +121,9 @@ const RoomRow: FC<RoomRowProps> = ({row, index, canTurn, height, onMove}) => {
 	)
 }
 
-const RoomGameRestart: FC<{client: Client}> = ({client}) => {
+const RoomGameControl: FC<{client: VarhubGameClient, gameState: GameState}> = ({client, gameState}) => {
 	const [loading, setLoading] = useState(false);
+	const canPlay = gameState.playerO === client.name || gameState.playerX === client.name;
 
 	const onSubmit = useCallback<FormEventHandler<HTMLFormElement>>(async (event) => {
 		event.preventDefault();
@@ -141,14 +140,34 @@ const RoomGameRestart: FC<{client: Client}> = ({client}) => {
 		}
 	}, []);
 
-	return (
-		<form onSubmit={onSubmit}>
-			<div className="form-line">
-				<input name="width" type="number" min={4} max={20} placeholder="width = 11" disabled={loading} />
-				<input name="height" type="number" min={4} max={20} placeholder="height = 7" disabled={loading} />
-				<input value="start" type="submit" disabled={loading} />
-			</div>
+	const joinTeam = useCallback(async (team: "x" | "o") => {
+		try {
+			setLoading(true);
+			await client.methods.joinTeam(team);
+		} finally {
+			setLoading(false);
+		}
 
-		</form>
+	}, []);
+
+	return (
+		<>
+			{(gameState.playerO == null || gameState.playerX == null || canPlay) && (
+				<div className="form-line">
+					<input type="button" onClick={() => joinTeam("x")} disabled={loading || gameState.playerX != null} value="play X" />
+					<input type="button" onClick={() => joinTeam("o")} disabled={loading || gameState.playerO != null} value="play O" />
+					<input type="button" onClick={() => joinTeam(null)} disabled={!canPlay} value="spectate" />
+				</div>
+			)}
+			{(gameState.playerO != null && gameState.playerX != null && !gameState.turn && canPlay) && (
+				<form onSubmit={onSubmit}>
+					<div className="form-line">
+						<input name="width" type="number" min={4} max={20} placeholder="width = 11" disabled={loading}/>
+						<input name="height" type="number" min={4} max={20} placeholder="height = 7" disabled={loading}/>
+						<input value="start" type="submit" disabled={loading}/>
+					</div>
+				</form>
+			)}
+		</>
 	)
 }

@@ -1,10 +1,11 @@
-import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect } from "react";
-import {default as Client, ModuleDescription} from "varhub-ws-client";
-type ModuleHooks = Extract<ModuleDescription, {type: "js"}>["hooks"]
-export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s", url: string}) => void}> = (props) => {
+import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect, useMemo } from "react";
+import { Varhub } from "@flinbein/varhub-web-client";
+import roomIntegrity from "varhub-modules-integrity:../controllers:index.ts";
+import { VarhubGameClient } from "../types";
 
+export const Enter: FC<{onCreate: (data: VarhubGameClient) => void}> = (props) => {
 
-	const [loading, setLoading] = useState(false);
+	const [abortCtrl, setAbortCtrl] = useState<AbortController|null>(null);
 
 	const [initValues] = useState(() => {
 		const searchParams = new URLSearchParams(location.search);
@@ -12,7 +13,7 @@ export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s
 		const url = searchParams.get("url") ?? history?.state?.url ?? "";
 		const room = searchParams.get("room") ?? history?.state?.room ?? "";
 		const name = history?.state?.name ?? "";
-		const team = history?.state?.team ?? "";
+		const join = history?.state?.join ?? false;
 		let autofocusField = "url";
 		if (url) autofocusField = "room";
 		if (url && room) autofocusField = "name";
@@ -20,91 +21,122 @@ export const Enter: FC<{onCreateClient: (data: {client: Client, team: "x"|"o"|"s
 		if (searchParams.has("url") || searchParams.has("room")) {
 			const currentUrl = new URL(location.href);
 			currentUrl.search = "";
-			history.replaceState({ url, room, name, team }, "", currentUrl);
+			history.replaceState({ url, room, name }, "", currentUrl);
 		}
-		return { url, room, name, team, autofocusField };
+		return { url, room, name, join, autofocusField };
 	});
 
-	const [action, setAction] = useState(() => initValues.room ? "join" : "create");
+	const [room, setRoom] = useState(initValues.room);
+	const [url, setUrl] = useState(initValues.url);
+	const [name, setName] = useState(initValues.name);
 
-	const onChangeRoomId = useCallback<ChangeEventHandler<HTMLInputElement>>((event) => {
-		setAction(event.target.value ? "join" : "create");
-	}, []);
-
-	const enterRoom = useCallback(async (url: string, room:string, name:string, team:"x"|"o"|"s") => {
-		if (!team) return;
+	const enterRoom = useCallback(async (url: string, room:string, clientName:string) => {
+		const ctrl = new AbortController();
 		try {
-			setLoading(true);
-			const client = await createClient(url, room, {name,team});
-			window.history.replaceState({url, room: client.roomId, name, team}, "");
-			props.onCreateClient({client, team, url});
+			setAbortCtrl(ctrl);
+			const client = await createRoomAndClient(url, room, clientName, ctrl);
+			window.history.replaceState({url, room: client.roomId, name: clientName, join: true}, "");
+			props.onCreate(client);
 		} catch (e) {
 			console.error(e);
 			alert(e.message);
 		} finally {
-			setLoading(false);
+			setAbortCtrl(null);
 		}
 	}, []);
 
 	useEffect(() => {
 		console.log("INIT-VALUES", initValues);
-		if (initValues.url && initValues.room && initValues.name && initValues.team) {
-			void enterRoom(initValues.url, initValues.room, initValues.name, initValues.team as any);
+		if (initValues.url && initValues.room && initValues.name && initValues.join) {
+			void enterRoom(initValues.url, initValues.room, initValues.name);
 		}
 	}, []);
 
 	const onSubmit = useCallback<FormEventHandler<HTMLFormElement>>((event) => {
 		event.preventDefault();
 		const inputs = event.currentTarget.elements;
+		const action = event.nativeEvent?.["submitter"]?.name ?? "join" as string;
 		const url = (inputs.namedItem("url") as HTMLInputElement).value;
-		const room = (inputs.namedItem("room") as HTMLInputElement).value;
+		const room = action === "join" ? (inputs.namedItem("room") as HTMLInputElement).value : "";
 		const name = (inputs.namedItem("name") as HTMLInputElement).value;
-		const team = event.nativeEvent?.["submitter"]?.name as string;
-		console.log("FORM", {url, room, name, team});
-		void enterRoom(url, room, name, team as any);
+		void enterRoom(url, room, name);
 	}, []);
 
+	const selectRoom = useCallback((room: string) => {
+		setRoom(room);
+		if (url && name) void enterRoom(url, room, name);
+	}, [url, name])
+
+	const cancel = useCallback(() => {
+		if (!abortCtrl) return;
+		abortCtrl.abort("cancelled");
+		setAbortCtrl(null);
+	}, [abortCtrl]);
 
 	return (
 		<form onSubmit={onSubmit}>
 			<div>
-				<input autoFocus={initValues.autofocusField==="url"} disabled={loading} name="url" type="text" placeholder="wss://server-address" defaultValue={initValues.url} required/>
+				<input autoFocus={initValues.autofocusField==="url"} disabled={!!abortCtrl} name="url" type="text" placeholder="https://server-address" value={url} onChange={(e) => setUrl(e.target.value)} required/>
 			</div>
 			<div>
-				<input autoFocus={initValues.autofocusField==="room"} disabled={loading} name="room" type="text" placeholder="room (create new if empty)" defaultValue={initValues.room} onChange={onChangeRoomId}/>
+				<input autoFocus={initValues.autofocusField==="room"} disabled={!!abortCtrl} name="room" type="text" placeholder="room (create new if empty)" value={room} onChange={(e) => setRoom(e.target.value)}/>
 			</div>
 			<div>
-				<input autoFocus={initValues.autofocusField==="name"} disabled={loading} name="name" type="text" placeholder="name" defaultValue={initValues.name} required/>
+				<input autoFocus={initValues.autofocusField==="name"} disabled={!!abortCtrl} name="name" type="text" placeholder="name" value={name} onChange={(e) => setName(e.target.value)} required/>
 			</div>
 			<div className="form-line">
-				<input name="x" disabled={loading} type="submit" value={action + " X"}/>
-				<input name="o" disabled={loading} type="submit" value={action + " O"}/>
-				<input name="s" disabled={loading} type="submit" value={action + " spectate"}/>
+				<input disabled={!!(abortCtrl || !room)} type="submit" name="join" value="join" />
+				<input disabled={!!(abortCtrl)} type="submit" name="create" value="create new" />
+				<input onClick={cancel} disabled={!abortCtrl} type="button" value="cancel"/>
 			</div>
+			{!abortCtrl && <SearchRooms selectRoom={selectRoom} url={url} key={url}/>}
 		</form>
 	);
 }
 
-async function createClient(url: string, roomId: string, params: any){
-	const client = new Client(url);
-	try {
-		await client.waitForInit();
-		if (!roomId) {
-			const roomModules = await import("varhub-modules:../controllers:/game.ts");
-			console.log("roomModules", roomModules);
-			const [newRoomId, hash] = await client.createRoom({
-				modules: roomModules,
-				config: {creator: name},
-			});
-			console.log("Room created", newRoomId, hash);
-			roomId = newRoomId;
-		}
-		const joinSuccess = await client.joinRoom(roomId, null, params);
-		if (!joinSuccess) throw new Error("player rejected by room");
-		return client;
-	} catch (error) {
-		client.close("can not join room");
-		throw error;
+async function createRoomAndClient(url: string, roomId: string, name: string, ctrl: AbortController){
+	const hub = new Varhub(url);
+	if (!roomId) {
+		const { roomModule, roomIntegrity} = await import("varhub-modules:../controllers:index.ts");
+		const roomData = await hub.createRoom(roomModule, {integrity: roomIntegrity});
+		roomId = roomData.id;
+		console.log("ROOM CREATED", roomData);
 	}
+	console.log("JOIN ROOM", roomId, name, roomIntegrity);
+	return await hub.join(roomId, name, {integrity: roomIntegrity, timeout: ctrl.signal}) as any as VarhubGameClient;
+}
 
+const SearchRooms: FC<{selectRoom: (value: string) => void, url: string}> = ({selectRoom, url}) => {
+	const [loading, setLoading] = useState(false);
+	const [roomMap, setRoomMap] = useState<Record<string, string>>({});
+
+	const search = useCallback(async () => {
+		try {
+			const varhub = new Varhub(url);
+			setLoading(true);
+			const rooms = await varhub.findRooms(roomIntegrity);
+			setRoomMap(rooms);
+		} finally {
+			setLoading(false);
+		}
+	}, []);
+
+	if (!url) return null;
+
+	return (
+		<>
+			<div className="form-line">
+				<input type="button" onClick={search} disabled={loading} value={`Search rooms ${roomIntegrity.substring(0, 8)}`}/>
+			</div>
+			{Object.keys(roomMap).map(key => (
+				<input
+					key={key}
+					title={roomMap[key]}
+					type="button"
+					onClick={() => selectRoom(key)} disabled={loading}
+					value={key}
+				/>
+			))}
+		</>
+	)
 }
