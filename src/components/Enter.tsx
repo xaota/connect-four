@@ -1,7 +1,7 @@
-import React, { FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect, useMemo } from "react";
+import React, { type FC, useCallback, useState, ChangeEventHandler, FormEventHandler, useEffect, useMemo } from "react";
 import { Varhub } from "@flinbein/varhub-web-client";
 import roomIntegrity from "varhub-modules-integrity:../controllers:index.ts";
-import { VarhubGameClient } from "../types";
+import type { VarhubGameClient } from "../types";
 
 export const Enter: FC<{onCreate: (data: VarhubGameClient) => void}> = (props) => {
 
@@ -10,7 +10,7 @@ export const Enter: FC<{onCreate: (data: VarhubGameClient) => void}> = (props) =
 	const [initValues] = useState(() => {
 		const searchParams = new URLSearchParams(location.search);
 
-		const url = searchParams.get("url") ?? history?.state?.url ?? "";
+		const url = searchParams.get("url") ?? history?.state?.url ?? "https://varhub.dpohvar.ru";
 		const room = searchParams.get("room") ?? history?.state?.room ?? "";
 		const name = history?.state?.name ?? "";
 		const join = history?.state?.join ?? false;
