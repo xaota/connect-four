@@ -12,9 +12,9 @@ export const App: FC = () => {
 		if (!client) return;
 		const onClose = () => setClient(null);
 		client.on("close", onClose);
+		client.on("message", console.log); // логгер
 		return () => void client.off("close", onClose);
 	}, [client]);
-
 
 	if (!client) return (
 		<div>

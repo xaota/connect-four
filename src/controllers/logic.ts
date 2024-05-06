@@ -8,7 +8,9 @@ import {
 	TeamSelect,
 	Team,
 	FieldPatch,
-	Sequence, GameTurnResult
+	Sequence, GameTurnResult,
+	GameLoopState,
+	GameFinish
 } from "./types";
 import { getPlayerTeam, isPlayer, checkWinPoints, getOppositeTeam } from "./selectors.js";
 import room from "varhub:room";
@@ -43,7 +45,6 @@ sample({
 	source: $teams,
 	filter: (teams, { team }) => !teams[team],
 	fn: (teams, { player, team }): GameTeams => {
-		room.broadcast("test", JSON.stringify( { player, team, teams }));
 		const oppositeTeam = getOppositeTeam(team);
 		return teams[oppositeTeam] === player
 			? { ...teams, [team]: player, [oppositeTeam]: "" }
@@ -95,10 +96,27 @@ sample({
 	target: $height
 });
 
+// старт игры по нажатию кнопки start, если есть команды
+sample({
+	clock: setFieldSize,
+	source: $teams,
+	filter: teams => Boolean(teams.x) && Boolean(teams.o),
+	fn: () => "game" as GameState,
+	target: $gameState
+});
+
 // процесс игры
 export const moveHandler = createEvent<GameTurn>("moveHandler");
 export const move = createEvent<GameTurn>("move");
-export const $turnTeam = createStore<Team>("x", { name: "turnTeam" });
+export const $turnTeam = createStore<GameLoopState>("" as GameLoopState, { name: "turnTeam" });
+
+// при запуске игры первым ходит команда x
+sample({
+	clock: $gameState,
+	filter: state => state === "game",
+	fn: () => "x" as GameLoopState,
+	target: $turnTeam
+});
 
 sample({
 	clock: moveHandler,
@@ -108,7 +126,7 @@ sample({
 		isPlayer(teams, player),
 		getPlayerTeam(teams, player) === turnTeam,
 		Number.isInteger(column),
-		fields.length < column,
+		column < fields.length,
 		fields[column].length < height
 	].every(e => e),
 	fn: (_, data) => data,
@@ -119,8 +137,8 @@ const checkWinAfterTurn = createEvent<GameTurnResult>();
 
 sample({
 	clock: move,
-	source: { fields: $field, teams: $teams, turnTeam: $turnTeam },
-	fn: ({ fields, teams, turnTeam }, { player, column }) => {
+	source: { fields: $field, turnTeam: $turnTeam },
+	fn: ({ fields, turnTeam }, { column }) => {
 		const map = fields.slice();
 		const row = map[column].push(turnTeam);
 		return { map, row, column, turnTeam };
@@ -137,7 +155,7 @@ sample({
 	fn: ({ turnTeam }, { map, column, row }) => {
 		const sequence: Sequence = checkWinPoints(map, column, row, turnTeam, 4); // возвращает массив всегда
 		if (sequence.length === 0) return { map };
-		const team  = turnTeam.toUpperCase() as Uppercase<Team>;
+		const team = turnTeam.toUpperCase() as Uppercase<Team>;
 		sequence.forEach(([row, col]) => { map[row][col] = team });
 		return { map, sequence };
 	},
@@ -157,3 +175,33 @@ sample({
 	target: $gameState
 });
 
+// если нет победителя, передаем ход другой команде
+sample({
+	clock: updateField,
+	source: $turnTeam,
+	filter: (_, { sequence }) => !Boolean(sequence),
+	fn: turnTeam => getOppositeTeam(turnTeam),
+	target: $turnTeam
+});
+
+// если игра закончена то отправим сообщение о победителе
+// TODO: в этом файле нехорошо делать бродкаст
+sample({
+	clock: $gameState,
+	source: { turnTeam: $turnTeam, teams: $teams },
+	filter: ({ turnTeam, teams }, state) => Boolean(teams.x) && Boolean(teams.o) && Boolean(turnTeam) && state === "finish",
+	fn: ({ turnTeam, teams }) => {
+		const opposite = getOppositeTeam(turnTeam);
+		const winner = teams[turnTeam];
+		const looser = teams[opposite];
+
+		const data: GameFinish = {
+			[turnTeam]: { status: "win", player: winner },
+			[opposite]: { status: "loose", player: looser }
+		} as GameFinish;
+
+		room.broadcast("finish", data);
+	}
+});
+
+// TODO: добавить проверку на ничью

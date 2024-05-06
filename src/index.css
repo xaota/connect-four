@@ -120,6 +120,10 @@ input {
 	background-color: #ffc0c0;
 }
 
+.player-name.active {
+	outline: 1px solid red;
+}
+
 .invite-info {
 	padding-top: 100px;
 }

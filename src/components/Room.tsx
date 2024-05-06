@@ -1,6 +1,5 @@
 import React, { FC, useCallback, useState, FormEventHandler, useEffect, useMemo } from "react";
-import { VarhubGameClient, GameState } from "../types";
-import { gameJoinTeam } from "../controllers";
+import type { VarhubGameClient, GameState } from "../types";
 import { QrCodeCanvas } from "./QrCodeCanvas";
 import RoomGame from "./RoomGame";
 
@@ -44,6 +43,7 @@ export const Room: FC<RoomConnection> = ({client}) => {
 				<input type="button" value="LEAVE" onClick={leave}/>
 			</div>
 			<QrCodeCanvas data={inviteUrl} onClick={share} />
+			<p>{client.roomId}</p>
 		</div>
 	)
 }
