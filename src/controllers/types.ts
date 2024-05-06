@@ -15,3 +15,5 @@ export type GameTurnResult = { map: GameField, row: number, column: number };
 export type Sequence = Array<[number, number]>;
 
 export type FieldPatch = { map: GameField, sequence?: Sequence };
+
+export type GameFinish = Record<Team, { status: "win" | "loose" | "draw", player: string }>;
